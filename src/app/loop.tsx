@@ -53,6 +53,7 @@ const LoopGame = () => {
     }
     autoPlayRef.current.id = null;
     autoPlayRef.current.active = false;
+    resetGame();
   };
 
   const autoPlay = () => {
@@ -66,7 +67,7 @@ const LoopGame = () => {
         stopAutoPlay();
         return;
       }
-      autoPlayRef.current.id = setTimeout(step, 600);
+      autoPlayRef.current.id = setTimeout(step, 300);
     };
 
     step();
@@ -127,9 +128,7 @@ const LoopGame = () => {
                 className={`m-px rounded-lg items-center justify-center  ${v.c === "indigo" ? "bg-indigo-600" : v.c === "red" ? "bg-red-500" : v.c === "amber" ? "bg-amber-500" : "bg-slate-950"}`}
               >
                 {(v.iS || v.iE) &&
-                !(k === planePos.row && key === planePos.col) &&
-                k !== startPos!.row &&
-                key !== startPos!.col ? (
+                !(k === planePos.row && key === planePos.col) ? (
                   <Star
                     size={15}
                     fill="#ffffff"
