@@ -1,4 +1,4 @@
-import { gameLoop, Loop } from "@/loops/gameLoop";
+import { Loop } from "@/loops/gameLoop";
 import { create } from "zustand";
 import { rotationDegree as rt } from "@/utils/rotation";
 import { HydratedLevel } from "@/db/schema";
@@ -36,6 +36,8 @@ type InstructionsState = {
   gameBoard: Loop[][] | null;
   _gameBoardCopy: Loop[][] | null;
   userBoard: Loop[][] | null;
+  coloredSquares: Set<string>;
+  visitedColoredSquares: Set<string>;
   instructions: Instruction[] | null;
   instructionBoard: Instruction[][] | null;
   currentInsertInstructionBox: coordinates;
@@ -50,30 +52,62 @@ type InstructionsState = {
   _planeOverlaps: () => void;
 };
 
-const findStartEnd = (
-  board: Loop[][],
-): { startPos: coordinates; endPos: coordinates } => {
+const findStart = (board: Loop[][]): { startPos: coordinates } => {
   let startPos: coordinates | null = null;
-  let endPos: coordinates | null = null;
 
   for (let row = 0; row < board.length; row++) {
     for (let col = 0; col < board[row].length; col++) {
       const cell = board[row][col];
       if (cell.iS && !startPos) startPos = { row, col };
-      if (cell.iE && !endPos) endPos = { row, col };
     }
   }
 
   const fallbackStart: coordinates = { row: 0, col: 0 };
-  const fallbackEnd: coordinates = {
-    row: Math.max(0, board.length - 1),
-    col: Math.max(0, (board[0]?.length ?? 1) - 1),
-  };
 
   return {
     startPos: startPos ?? fallbackStart,
-    endPos: endPos ?? fallbackEnd,
   };
+};
+
+const posKey = (pos: coordinates) => `${pos.row}:${pos.col}`;
+
+const collectColoredSquares = (board: Loop[][]): Set<string> => {
+  const colored = new Set<string>();
+  for (let row = 0; row < board.length; row++) {
+    for (let col = 0; col < board[row].length; col++) {
+      if (board[row][col].c !== "") {
+        colored.add(`${row}:${col}`);
+      }
+    }
+  }
+  return colored;
+};
+
+const initVisitedSquares = (
+  startPos: coordinates | null,
+  coloredSquares: Set<string>,
+): Set<string> => {
+  const visited = new Set<string>();
+  if (startPos) {
+    const key = posKey(startPos);
+    if (coloredSquares.has(key)) {
+      visited.add(key);
+    }
+  }
+  return visited;
+};
+
+const hasVisitedAllColoredSquares = (
+  visited: Set<string>,
+  coloredSquares: Set<string>,
+): boolean => coloredSquares.size > 0 && visited.size >= coloredSquares.size;
+
+const getInstructionStartIndex = (
+  instructionBoard: Instruction[][] | null,
+): number => {
+  if (!instructionBoard || instructionBoard.length === 0) return 0;
+  if (!instructionBoard[0] || instructionBoard[0].length === 0) return 0;
+  return instructionBoard[0].length > 1 ? 1 : 0;
 };
 
 const useInstructionStore = create<InstructionsState>()((set, get) => ({
@@ -81,16 +115,33 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
   gamePuzzleIndex: 0,
 
   setGamePuzzles: (gamePuzzle) => {
-    const firstPuzzle = gamePuzzle[0];
-    const { startPos, endPos } = findStartEnd(gamePuzzle[0].gameLoop);
+    let gameIndex: number = 0;
+    gamePuzzle.map((k, idx) => {
+      if (!k.solved) {
+        gameIndex = idx;
+      }
+    });
+    const firstPuzzle = gamePuzzle[gameIndex];
+    const { startPos } = findStart(gamePuzzle[gameIndex].gameLoop);
+    const coloredSquares = collectColoredSquares(
+      gamePuzzle[gameIndex].gameLoop,
+    );
+    const visitedColoredSquares = initVisitedSquares(startPos, coloredSquares);
+    const startInstructionIndex = getInstructionStartIndex(
+      firstPuzzle ? firstPuzzle.instructions : null,
+    );
     set({
       gamePuzzles: gamePuzzle,
       instructionBoard: firstPuzzle ? firstPuzzle.instructions : null,
-      gameBoard: gamePuzzle[0].gameLoop,
+      gameBoard: gamePuzzle[gameIndex].gameLoop,
       startPos: startPos,
-      endPos: endPos,
       planePos: startPos,
-      rotationDegree: gamePuzzle[0].rotationDegree,
+      rotationDegree: gamePuzzle[gameIndex].rotationDegree,
+      coloredSquares,
+      visitedColoredSquares,
+      won: hasVisitedAllColoredSquares(visitedColoredSquares, coloredSquares),
+      currentInstructionIndex: startInstructionIndex,
+      gamePuzzleIndex: gameIndex,
     });
   },
   won: false,
@@ -104,9 +155,11 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
   gameBoard: null,
   _gameBoardCopy: null,
   _copyGameBoard: () => {
-    set({ _gameBoardCopy: gameLoop });
+    set({ _gameBoardCopy: get().gamePuzzles![get().gamePuzzleIndex].gameLoop });
   },
   userBoard: null,
+  coloredSquares: new Set<string>(),
+  visitedColoredSquares: new Set<string>(),
   instructions: null,
   instructionBoard: null,
 
@@ -167,25 +220,42 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
     }
   },
   _planeOverlaps: () => {
-    const { planePos, startPos, gameBoard } = get();
+    const { planePos, startPos, gameBoard, coloredSquares, instructionBoard } =
+      get();
     if (
       gameBoard![planePos.row][planePos.col].c === "" &&
-      gameLoop[planePos.row][planePos.col].c === ""
+      gameBoard![planePos.row][planePos.col].c === ""
     ) {
       setTimeout(() => {
         const { overlapResetCount } = get();
+        const visitedColoredSquares = initVisitedSquares(
+          startPos,
+          coloredSquares,
+        );
+        const startInstructionIndex =
+          getInstructionStartIndex(instructionBoard);
         set({
           planePos: startPos!,
-          currentInstructionIndex: 0,
+          currentInstructionIndex: startInstructionIndex,
           rotationDegree: { from: 0, to: 0 },
-          won: false,
+          won: hasVisitedAllColoredSquares(
+            visitedColoredSquares,
+            coloredSquares,
+          ),
           overlapResetCount: overlapResetCount + 1,
+          visitedColoredSquares,
         });
       }, 500);
     }
   },
   _moveForward: () => {
-    const { planePos, rotationDegree, _planeOverlaps, endPos } = get();
+    const {
+      planePos,
+      rotationDegree,
+      _planeOverlaps,
+      coloredSquares,
+      visitedColoredSquares,
+    } = get();
     let newPos: coordinates | undefined;
     if (rotationDegree.to === 0) {
       newPos = { row: planePos.row, col: planePos.col + 1 };
@@ -197,13 +267,19 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       newPos = { row: planePos.row - 1, col: planePos.col };
     }
 
-    // Check if we reached the end immediately after moving
-    if (newPos!.row === endPos!.row && newPos!.col === endPos!.col) {
-      set({ planePos: newPos, won: true });
-      return;
+    let nextVisited = visitedColoredSquares;
+    const key = posKey(newPos!);
+    if (coloredSquares.has(key) && !visitedColoredSquares.has(key)) {
+      nextVisited = new Set(visitedColoredSquares);
+      nextVisited.add(key);
     }
+    const nextWon = hasVisitedAllColoredSquares(nextVisited, coloredSquares);
 
-    set({ planePos: newPos });
+    set({
+      planePos: newPos,
+      visitedColoredSquares: nextVisited,
+      won: nextWon,
+    });
     _planeOverlaps();
   },
 
@@ -229,14 +305,8 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       _changeGridColor,
       _moveForward,
       gameBoard,
-      endPos,
     } = get();
     if (instructionBoard === null) return;
-
-    if (planePos.row === endPos!.row && planePos.col === endPos!.col) {
-      set({ won: true });
-      return;
-    }
     let idx = currentInstructionIndex + 1;
     if (idx >= instructionBoard[0].length) {
       idx = backTrack(idx, instructionBoard);
@@ -288,87 +358,28 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
     }
 
     set({ currentInstructionIndex: idx });
-
-    // Final win check after instruction completes
-    const { planePos: finalPlanePos, endPos: finalEndPos } = get();
-    if (
-      finalPlanePos.row === finalEndPos!.row &&
-      finalPlanePos.col === finalEndPos!.col
-    ) {
-      set({ won: true });
-    }
   },
   resetGame: () => {
-    const { startPos, endPos } = findStartEnd(gameLoop);
+    const { gamePuzzleIndex, gamePuzzles, rotationDegree } = get();
+    const { startPos } = findStart(gamePuzzles![gamePuzzleIndex].gameLoop);
+    const coloredSquares = collectColoredSquares(
+      gamePuzzles![gamePuzzleIndex].gameLoop,
+    );
+    const visitedColoredSquares = initVisitedSquares(startPos, coloredSquares);
+    const startInstructionIndex = getInstructionStartIndex(
+      gamePuzzles![gamePuzzleIndex].instructions,
+    );
     set({
       planePos: startPos,
-      startPos,
-      endPos,
-      rotationDegree: { from: 0, to: 0 },
-      won: false,
-      currentInstructionIndex: 0,
-      gameBoard: gameLoop,
+      startPos: startPos,
+      rotationDegree: rotationDegree,
+      won: hasVisitedAllColoredSquares(visitedColoredSquares, coloredSquares),
+      currentInstructionIndex: startInstructionIndex,
+      gameBoard: get().gameBoard!,
+      coloredSquares,
+      visitedColoredSquares,
       currentInsertInstructionBox: { row: 0, col: 0 },
-      instructionBoard: [
-        [
-          {
-            move: "NUll",
-            color: "",
-            colorSquare: false,
-            paintSquare: "",
-            isStart: true,
-            startCode: 0,
-          },
-          {
-            move: "NUll",
-            color: "",
-            colorSquare: false,
-            paintSquare: "",
-            isStart: false,
-            startCode: null,
-          },
-          {
-            move: "NUll",
-            color: "",
-            colorSquare: false,
-            paintSquare: "",
-            isStart: false,
-            startCode: null,
-          },
-          {
-            move: "NUll",
-            color: "",
-            colorSquare: false,
-            paintSquare: "",
-            isStart: false,
-            startCode: null,
-          },
-          {
-            move: "NUll",
-            color: "",
-            colorSquare: false,
-            paintSquare: "",
-            isStart: false,
-            startCode: null,
-          },
-          {
-            move: "NUll",
-            color: "",
-            colorSquare: false,
-            paintSquare: "",
-            isStart: false,
-            startCode: null,
-          },
-          {
-            move: "NUll",
-            color: "",
-            colorSquare: false,
-            paintSquare: "",
-            isStart: false,
-            startCode: null,
-          },
-        ],
-      ],
+      instructionBoard: gamePuzzles![gamePuzzleIndex].instructions,
     });
   },
 }));
