@@ -22,6 +22,8 @@ import {
 import Feather from "@expo/vector-icons/Feather";
 
 import { calculateBoxSize } from "@/utils/size-calculator";
+import { useSQLiteContext } from "expo-sqlite";
+import { markLevelAsSolved } from "@/db/database";
 
 const LoopGame = () => {
   const {
@@ -38,7 +40,13 @@ const LoopGame = () => {
     currentInstructionIndex,
     won,
     overlapResetCount,
+    nextLevel,
+    gamePuzzles,
+    gamePuzzleIndex,
+    markCurrentLevelSolved,
   } = useInstructionStore();
+
+  const db = useSQLiteContext();
 
   const boxSize = calculateBoxSize(gameBoard![0].length || 12);
   const sleep = (ms: number) =>
@@ -88,6 +96,24 @@ const LoopGame = () => {
   }, [rotation]);
 
   useEffect(() => {
+    if (won && gamePuzzles && gamePuzzles[gamePuzzleIndex]) {
+      const isAlreadySolved = gamePuzzles[gamePuzzleIndex].solved;
+
+      if (!isAlreadySolved) {
+        // Persist win state in SQLite
+        markLevelAsSolved(db, gamePuzzles[gamePuzzleIndex].id);
+        // Update in-memory state
+        markCurrentLevelSolved();
+      }
+
+      const timer = setTimeout(() => {
+        nextLevel();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [won, nextLevel, gamePuzzles, gamePuzzleIndex, db, markCurrentLevelSolved]);
+
+  useEffect(() => {
     if (overlapResetCount > 0) stopAutoPlay();
   }, [overlapResetCount]);
 
@@ -125,7 +151,8 @@ const LoopGame = () => {
                 style={{ width: boxSize, height: boxSize }}
                 className={`m-px rounded-lg items-center justify-center  ${v.c === "indigo" ? "bg-indigo-600" : v.c === "red" ? "bg-red-500" : v.c === "amber" ? "bg-amber-500" : "bg-slate-950"}`}
               >
-                {v.iE && !(k === planePos.row && key === planePos.col) ? (
+                {(v.iS || v.iE) &&
+                !(k === planePos.row && key === planePos.col) ? (
                   <Star
                     size={15}
                     fill="#ffffff"
