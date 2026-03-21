@@ -41,7 +41,8 @@ const LoopGame = () => {
   } = useInstructionStore();
 
   const boxSize = calculateBoxSize(gameBoard![0].length || 12);
-
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
   const autoPlayRef = useRef<{
     id: ReturnType<typeof setTimeout> | null;
     active: boolean;
@@ -64,10 +65,11 @@ const LoopGame = () => {
       if (!autoPlayRef.current.active) return;
       play();
       if (useInstructionStore.getState().won) {
-        stopAutoPlay();
+        autoPlayRef.current.active = false;
+        autoPlayRef.current.id = null;
         return;
       }
-      autoPlayRef.current.id = setTimeout(step, 300);
+      autoPlayRef.current.id = setTimeout(step, 50);
     };
 
     step();
@@ -84,10 +86,6 @@ const LoopGame = () => {
       false,
     );
   }, [rotation]);
-
-  useEffect(() => {
-    if (won) stopAutoPlay();
-  }, [won]);
 
   useEffect(() => {
     if (overlapResetCount > 0) stopAutoPlay();
@@ -127,8 +125,7 @@ const LoopGame = () => {
                 style={{ width: boxSize, height: boxSize }}
                 className={`m-px rounded-lg items-center justify-center  ${v.c === "indigo" ? "bg-indigo-600" : v.c === "red" ? "bg-red-500" : v.c === "amber" ? "bg-amber-500" : "bg-slate-950"}`}
               >
-                {(v.iS || v.iE) &&
-                !(k === planePos.row && key === planePos.col) ? (
+                {v.iE && !(k === planePos.row && key === planePos.col) ? (
                   <Star
                     size={15}
                     fill="#ffffff"
