@@ -51,6 +51,8 @@ type InstructionsState = {
   currentInstructionIndex: number;
   resetGame: () => void;
   _planeOverlaps: () => void;
+  syncStatus: "idle" | "syncing" | "success" | "error";
+  setSyncStatus: (status: "idle" | "syncing" | "success" | "error") => void;
 };
 
 const findStart = (board: Loop[][]): { startPos: coordinates } => {
@@ -474,6 +476,8 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       instructionBoard: gamePuzzles![gamePuzzleIndex].instructions,
     });
   },
+  syncStatus: "idle",
+  setSyncStatus: (status) => set({ syncStatus: status }),
 }));
 
 const backTrack = (
