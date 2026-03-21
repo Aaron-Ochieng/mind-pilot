@@ -10,7 +10,7 @@ import useInstructionStore from "@/store/loop-game-instructions";
 const Index = () => {
   const router = useRouter();
   const db = useSQLiteContext();
-  const { setGamePuzzles, gamePuzzles } = useInstructionStore();
+  const { setGamePuzzles, gamePuzzles, syncStatus } = useInstructionStore();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ const Index = () => {
       }
     };
     void loadLevels();
-  }, [db]);
+  }, [db, syncStatus]);
 
   const hasPuzzles = gamePuzzles && gamePuzzles.length > 0;
 
@@ -35,7 +35,7 @@ const Index = () => {
       <View className="mb-12 items-center">
         <Text
           className="text-white text-4xl font-bold mb-2"
-          style={{ fontFamily: "JetBrainsMono_700Bold" }}
+          style={{ fontFamily: "JetBrainsMono_400Regular" }}
         >
           BlockPilot
         </Text>
@@ -73,15 +73,39 @@ const Index = () => {
         </Text>
       </Pressable>
 
-      {!loading && !hasPuzzles && (
-        <View className="mt-8 bg-red-900/20 p-4 rounded-lg border border-red-500/30">
-          <Text className="text-red-400 text-center text-sm">
-            No puzzles found. Please check your internet connection to sync.
+      {(!loading || syncStatus !== "idle") && (
+        <View
+          className={`mt-8 p-4 rounded-lg border w-full ${
+            syncStatus === "success"
+              ? "bg-emerald-900/20 border-emerald-500/30"
+              : syncStatus === "syncing"
+                ? "bg-blue-900/20 border-blue-500/30"
+                : !hasPuzzles
+                  ? "bg-red-900/20 border-red-500/30"
+                  : "hidden"
+          }`}
+        >
+          <Text
+            className={`text-center text-sm ${
+              syncStatus === "success"
+                ? "text-emerald-400"
+                : syncStatus === "syncing"
+                  ? "text-blue-400"
+                  : "text-red-400"
+            }`}
+          >
+            {syncStatus === "syncing"
+              ? "Syncing puzzles from cloud..."
+              : syncStatus === "success"
+                ? "Puzzles synchronized successfully!"
+                : !hasPuzzles
+                  ? "No puzzles found. Please check your internet connection to sync."
+                  : ""}
           </Text>
         </View>
       )}
 
-      {loading && (
+      {loading && syncStatus === "idle" && (
         <View className="mt-8">
           <Text className="text-slate-500 text-sm italic">
             Initializing puzzles...
