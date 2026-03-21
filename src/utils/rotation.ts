@@ -1,3 +1,3 @@
 export const rotationDegree = (from: number, to: number): number => {
-  return (from + to) % 360;
+  return (from + to + 360) % 360;
 };
