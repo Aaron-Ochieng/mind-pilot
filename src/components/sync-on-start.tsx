@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useSQLiteContext } from "expo-sqlite";
 import { getLastSyncTimestamp, getLevelsCount } from "@/db/database";
 import { syncFirestoreToSQLite } from "@/services/syncService";
+import * as Network from "expo-network";
 
 const LEVELS_SYNC_KEY = "levels_sync";
 
@@ -11,21 +12,30 @@ export default function SyncOnStart() {
   useEffect(() => {
     const run = async () => {
       try {
-        const [lastSync, count] = await Promise.all([
+        const [lastSync, count, networkState] = await Promise.all([
           getLastSyncTimestamp(db, LEVELS_SYNC_KEY),
           getLevelsCount(db),
+          Network.getNetworkStateAsync(),
         ]);
 
-        if (lastSync == null || count === 0) {
-          console.log("No local levels yet. Syncing from Firestore...");
+        const isConnected =
+          networkState.isConnected && networkState.isInternetReachable;
+
+        if ((lastSync == null || count === 0) && isConnected) {
+          console.log("No local levels or sync needed. Syncing from Firestore...");
           await syncFirestoreToSQLite(db);
           return;
         }
 
+        if (!isConnected && count === 0) {
+          console.warn("No local levels and no internet connection. Cannot sync.");
+          return;
+        }
+
         console.log(
-          `Skipping Firestore sync. Local levels: ${count}. Last sync: ${new Date(
-            lastSync * 1000,
-          ).toISOString()}`,
+          `Skipping Firestore sync. Local levels: ${count}. Internet: ${isConnected}. Last sync: ${
+            lastSync ? new Date(lastSync * 1000).toISOString() : "Never"
+          }`,
         );
       } catch (error) {
         console.error("Bootstrap sync failed:", error);
