@@ -50,6 +50,8 @@ type InstructionsState = {
   play: () => void;
   currentInstructionIndex: number;
   resetGame: () => void;
+  nextLevel: () => void;
+  markCurrentLevelSolved: () => void;
   _planeOverlaps: () => void;
   syncStatus: "idle" | "syncing" | "success" | "error";
   setSyncStatus: (status: "idle" | "syncing" | "success" | "error") => void;
@@ -78,7 +80,11 @@ const collectPathSquares = (board: Loop[][]): Set<string> => {
   const path = new Set<string>();
   for (let row = 0; row < board.length; row++) {
     for (let col = 0; col < board[row].length; col++) {
-      if (board[row][col].c !== "" || board[row][col].iE || board[row][col].iS) {
+      if (
+        board[row][col].c !== "" ||
+        board[row][col].iE ||
+        board[row][col].iS
+      ) {
         path.add(`${row}:${col}`);
       }
     }
@@ -135,11 +141,13 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       return;
     }
     let gameIndex: number = 0;
-    gamePuzzle.map((k, idx) => {
-      if (!k.solved) {
-        gameIndex = idx;
+    // Find the first unsolved level
+    for (let i = 0; i < gamePuzzle.length; i++) {
+      if (!gamePuzzle[i].solved) {
+        gameIndex = i;
+        break;
       }
-    });
+    }
     const firstPuzzle = gamePuzzle[gameIndex];
     const { startPos } = findStart(gamePuzzle[gameIndex].gameLoop);
     const pathSquares = collectPathSquares(gamePuzzle[gameIndex].gameLoop);
@@ -268,10 +276,7 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       planePos.col < 0 ||
       planePos.col >= gameBoard![0].length;
 
-    if (
-      isOutOfBounds ||
-      (!pathSquares.has(key) && key !== posKey(startPos!))
-    ) {
+    if (isOutOfBounds || (!pathSquares.has(key) && key !== posKey(startPos!))) {
       setTimeout(() => {
         const { overlapResetCount, gamePuzzleIndex, gamePuzzles } = get();
         const visitedTargets = initVisitedTargets(startPos, targetSquares);
@@ -291,7 +296,7 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
         set({
           planePos: startPos!,
           currentInstructionIndex: startInstructionIndex,
-          rotationDegree: { from: 0, to: 0 },
+          rotationDegree: gamePuzzles![gamePuzzleIndex].rotationDegree,
           won: hasVisitedAllTargets(visitedTargets, targetSquares),
           overlapResetCount: overlapResetCount + 1,
           visitedTargets,
@@ -310,7 +315,7 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       gameBoard,
     } = get();
 
-    const normalized = (rotationDegree.to % 360 + 360) % 360;
+    const normalized = ((rotationDegree.to % 360) + 360) % 360;
     let newPos: coordinates | undefined;
 
     if (normalized === 0) {
@@ -385,7 +390,18 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       _moveForward,
       gameBoard,
     } = get();
-    if (instructionBoard === null) return;
+    if (instructionBoard === null || !gameBoard) return;
+
+    // Guard against out of bounds access
+    if (
+      planePos.row < 0 ||
+      planePos.row >= gameBoard.length ||
+      planePos.col < 0 ||
+      planePos.col >= gameBoard[0].length
+    ) {
+      return;
+    }
+
     let idx = currentInstructionIndex + 1;
     if (idx >= instructionBoard[0].length) {
       idx = backTrack(idx, instructionBoard);
@@ -422,7 +438,7 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       const degree = rt(to, 90);
       set({ rotationDegree: { from: to, to: degree } });
     } else if (v.paintSquare !== "" && v.color !== "") {
-      if (gameBoard![planePos.row][planePos.col].c !== v.paintSquare) {
+      if (gameBoard![planePos.row][planePos.col].c === v.color) {
         _changeGridColor(v.paintSquare);
       }
     } else if (v.paintSquare !== "") {
@@ -439,7 +455,7 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
     set({ currentInstructionIndex: idx });
   },
   resetGame: () => {
-    const { gamePuzzleIndex, gamePuzzles, rotationDegree } = get();
+    const { gamePuzzleIndex, gamePuzzles } = get();
     if (!gamePuzzles || gamePuzzles.length === 0) return;
     const { startPos } = findStart(gamePuzzles![gamePuzzleIndex].gameLoop);
     const pathSquares = collectPathSquares(
@@ -465,7 +481,7 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
     set({
       planePos: startPos,
       startPos: startPos,
-      rotationDegree: { from: 0, to: 0 }, // Reset rotation too
+      rotationDegree: gamePuzzles![gamePuzzleIndex].rotationDegree,
       won: hasVisitedAllTargets(visitedTargets, targetSquares),
       currentInstructionIndex: startInstructionIndex,
       gameBoard: resetBoard,
@@ -475,6 +491,60 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       currentInsertInstructionBox: { row: 0, col: 0 },
       instructionBoard: gamePuzzles![gamePuzzleIndex].instructions,
     });
+  },
+  nextLevel: () => {
+    const { gamePuzzleIndex, gamePuzzles } = get();
+    if (!gamePuzzles || gamePuzzleIndex + 1 >= gamePuzzles.length) return;
+
+    const nextIndex = gamePuzzleIndex + 1;
+    const nextPuzzle = gamePuzzles[nextIndex];
+    const { startPos } = findStart(nextPuzzle.gameLoop);
+    const pathSquares = collectPathSquares(nextPuzzle.gameLoop);
+    const targetSquares = collectTargetSquares(nextPuzzle.gameLoop);
+    const visitedTargets = initVisitedTargets(startPos, targetSquares);
+    const startInstructionIndex = getInstructionStartIndex(
+      nextPuzzle.instructions,
+    );
+
+    // Clear iE at startPos in the initial gameBoard
+    const initialBoard = nextPuzzle.gameLoop.map((row, r) =>
+      row.map((cell, c) =>
+        r === startPos.row && c === startPos.col
+          ? { ...cell, iE: false }
+          : cell,
+      ),
+    );
+
+    set({
+      gamePuzzleIndex: nextIndex,
+      instructionBoard: nextPuzzle.instructions,
+      gameBoard: initialBoard,
+      startPos: startPos,
+      planePos: startPos,
+      rotationDegree: nextPuzzle.rotationDegree,
+      pathSquares,
+      targetSquares,
+      visitedTargets,
+      won: hasVisitedAllTargets(visitedTargets, targetSquares),
+      currentInstructionIndex: startInstructionIndex,
+      currentInsertInstructionBox: { row: 0, col: 0 },
+    });
+  },
+  markCurrentLevelSolved: () => {
+    const { gamePuzzles, gamePuzzleIndex } = get();
+    if (
+      !gamePuzzles ||
+      !gamePuzzles[gamePuzzleIndex] ||
+      gamePuzzles[gamePuzzleIndex].solved
+    )
+      return;
+
+    const newPuzzles = [...gamePuzzles];
+    newPuzzles[gamePuzzleIndex] = {
+      ...newPuzzles[gamePuzzleIndex],
+      solved: true,
+    };
+    set({ gamePuzzles: newPuzzles });
   },
   syncStatus: "idle",
   setSyncStatus: (status) => set({ syncStatus: status }),
