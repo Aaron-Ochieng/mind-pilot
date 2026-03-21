@@ -36,8 +36,9 @@ type InstructionsState = {
   gameBoard: Loop[][] | null;
   _gameBoardCopy: Loop[][] | null;
   userBoard: Loop[][] | null;
-  coloredSquares: Set<string>;
-  visitedColoredSquares: Set<string>;
+  pathSquares: Set<string>;
+  targetSquares: Set<string>;
+  visitedTargets: Set<string>;
   instructions: Instruction[] | null;
   instructionBoard: Instruction[][] | null;
   currentInsertInstructionBox: coordinates;
@@ -71,36 +72,48 @@ const findStart = (board: Loop[][]): { startPos: coordinates } => {
 
 const posKey = (pos: coordinates) => `${pos.row}:${pos.col}`;
 
-const collectColoredSquares = (board: Loop[][]): Set<string> => {
-  const colored = new Set<string>();
+const collectPathSquares = (board: Loop[][]): Set<string> => {
+  const path = new Set<string>();
   for (let row = 0; row < board.length; row++) {
     for (let col = 0; col < board[row].length; col++) {
-      if (board[row][col].c !== "") {
-        colored.add(`${row}:${col}`);
+      if (board[row][col].c !== "" || board[row][col].iE || board[row][col].iS) {
+        path.add(`${row}:${col}`);
       }
     }
   }
-  return colored;
+  return path;
 };
 
-const initVisitedSquares = (
+const collectTargetSquares = (board: Loop[][]): Set<string> => {
+  const targets = new Set<string>();
+  for (let row = 0; row < board.length; row++) {
+    for (let col = 0; col < board[row].length; col++) {
+      if (board[row][col].iE) {
+        targets.add(`${row}:${col}`);
+      }
+    }
+  }
+  return targets;
+};
+
+const initVisitedTargets = (
   startPos: coordinates | null,
-  coloredSquares: Set<string>,
+  targetSquares: Set<string>,
 ): Set<string> => {
   const visited = new Set<string>();
   if (startPos) {
     const key = posKey(startPos);
-    if (coloredSquares.has(key)) {
+    if (targetSquares.has(key)) {
       visited.add(key);
     }
   }
   return visited;
 };
 
-const hasVisitedAllColoredSquares = (
+const hasVisitedAllTargets = (
   visited: Set<string>,
-  coloredSquares: Set<string>,
-): boolean => coloredSquares.size > 0 && visited.size >= coloredSquares.size;
+  targetSquares: Set<string>,
+): boolean => targetSquares.size > 0 && visited.size >= targetSquares.size;
 
 const getInstructionStartIndex = (
   instructionBoard: Instruction[][] | null,
@@ -123,23 +136,33 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
     });
     const firstPuzzle = gamePuzzle[gameIndex];
     const { startPos } = findStart(gamePuzzle[gameIndex].gameLoop);
-    const coloredSquares = collectColoredSquares(
-      gamePuzzle[gameIndex].gameLoop,
-    );
-    const visitedColoredSquares = initVisitedSquares(startPos, coloredSquares);
+    const pathSquares = collectPathSquares(gamePuzzle[gameIndex].gameLoop);
+    const targetSquares = collectTargetSquares(gamePuzzle[gameIndex].gameLoop);
+    const visitedTargets = initVisitedTargets(startPos, targetSquares);
     const startInstructionIndex = getInstructionStartIndex(
       firstPuzzle ? firstPuzzle.instructions : null,
     );
+
+    // Clear iE at startPos in the initial gameBoard
+    const initialBoard = firstPuzzle.gameLoop.map((row, r) =>
+      row.map((cell, c) =>
+        r === startPos.row && c === startPos.col
+          ? { ...cell, iE: false }
+          : cell,
+      ),
+    );
+
     set({
       gamePuzzles: gamePuzzle,
       instructionBoard: firstPuzzle ? firstPuzzle.instructions : null,
-      gameBoard: gamePuzzle[gameIndex].gameLoop,
+      gameBoard: initialBoard,
       startPos: startPos,
       planePos: startPos,
       rotationDegree: gamePuzzle[gameIndex].rotationDegree,
-      coloredSquares,
-      visitedColoredSquares,
-      won: hasVisitedAllColoredSquares(visitedColoredSquares, coloredSquares),
+      pathSquares,
+      targetSquares,
+      visitedTargets,
+      won: hasVisitedAllTargets(visitedTargets, targetSquares),
       currentInstructionIndex: startInstructionIndex,
       gamePuzzleIndex: gameIndex,
     });
@@ -158,8 +181,9 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
     set({ _gameBoardCopy: get().gamePuzzles![get().gamePuzzleIndex].gameLoop });
   },
   userBoard: null,
-  coloredSquares: new Set<string>(),
-  visitedColoredSquares: new Set<string>(),
+  pathSquares: new Set<string>(),
+  targetSquares: new Set<string>(),
+  visitedTargets: new Set<string>(),
   instructions: null,
   instructionBoard: null,
 
@@ -220,30 +244,52 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
     }
   },
   _planeOverlaps: () => {
-    const { planePos, startPos, gameBoard, coloredSquares, instructionBoard } =
-      get();
+    const {
+      planePos,
+      startPos,
+      gameBoard,
+      pathSquares,
+      targetSquares,
+      instructionBoard,
+      won,
+    } = get();
+    if (won) return;
+
+    const key = posKey(planePos);
+    const isOutOfBounds =
+      planePos.row < 0 ||
+      planePos.row >= gameBoard!.length ||
+      planePos.col < 0 ||
+      planePos.col >= gameBoard![0].length;
+
     if (
-      gameBoard![planePos.row][planePos.col].c === "" &&
-      gameBoard![planePos.row][planePos.col].c === ""
+      isOutOfBounds ||
+      (!pathSquares.has(key) && key !== posKey(startPos!))
     ) {
       setTimeout(() => {
-        const { overlapResetCount } = get();
-        const visitedColoredSquares = initVisitedSquares(
-          startPos,
-          coloredSquares,
-        );
+        const { overlapResetCount, gamePuzzleIndex, gamePuzzles } = get();
+        const visitedTargets = initVisitedTargets(startPos, targetSquares);
         const startInstructionIndex =
           getInstructionStartIndex(instructionBoard);
+
+        // Reset gameBoard from original puzzle data when overlap happens (failure)
+        const resetBoard = gamePuzzles![gamePuzzleIndex].gameLoop.map(
+          (row, r) =>
+            row.map((cell, c) =>
+              r === startPos!.row && c === startPos!.col
+                ? { ...cell, iE: false }
+                : cell,
+            ),
+        );
+
         set({
           planePos: startPos!,
           currentInstructionIndex: startInstructionIndex,
           rotationDegree: { from: 0, to: 0 },
-          won: hasVisitedAllColoredSquares(
-            visitedColoredSquares,
-            coloredSquares,
-          ),
+          won: hasVisitedAllTargets(visitedTargets, targetSquares),
           overlapResetCount: overlapResetCount + 1,
-          visitedColoredSquares,
+          visitedTargets,
+          gameBoard: resetBoard,
         });
       }, 500);
     }
@@ -253,8 +299,9 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       planePos,
       rotationDegree,
       _planeOverlaps,
-      coloredSquares,
-      visitedColoredSquares,
+      targetSquares,
+      visitedTargets,
+      gameBoard,
     } = get();
     let newPos: coordinates | undefined;
     if (rotationDegree.to === 0) {
@@ -267,18 +314,41 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       newPos = { row: planePos.row - 1, col: planePos.col };
     }
 
-    let nextVisited = visitedColoredSquares;
+    let nextVisited = visitedTargets;
     const key = posKey(newPos!);
-    if (coloredSquares.has(key) && !visitedColoredSquares.has(key)) {
-      nextVisited = new Set(visitedColoredSquares);
-      nextVisited.add(key);
+    let nextBoard = gameBoard;
+
+    const isOutOfBounds =
+      newPos!.row < 0 ||
+      newPos!.row >= gameBoard!.length ||
+      newPos!.col < 0 ||
+      newPos!.col >= gameBoard![0].length;
+
+    if (!isOutOfBounds && targetSquares.has(key)) {
+      if (!visitedTargets.has(key)) {
+        nextVisited = new Set(visitedTargets);
+        nextVisited.add(key);
+      }
+
+      // Clear iE if present
+      if (gameBoard![newPos!.row][newPos!.col].iE) {
+        nextBoard = gameBoard!.map((row, r) =>
+          row.map((cell, c) =>
+            r === newPos!.row && c === newPos!.col
+              ? { ...cell, iE: false }
+              : cell,
+          ),
+        );
+      }
     }
-    const nextWon = hasVisitedAllColoredSquares(nextVisited, coloredSquares);
+
+    const nextWon = hasVisitedAllTargets(nextVisited, targetSquares);
 
     set({
       planePos: newPos,
-      visitedColoredSquares: nextVisited,
+      visitedTargets: nextVisited,
       won: nextWon,
+      gameBoard: nextBoard,
     });
     _planeOverlaps();
   },
@@ -362,22 +432,36 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
   resetGame: () => {
     const { gamePuzzleIndex, gamePuzzles, rotationDegree } = get();
     const { startPos } = findStart(gamePuzzles![gamePuzzleIndex].gameLoop);
-    const coloredSquares = collectColoredSquares(
+    const pathSquares = collectPathSquares(
       gamePuzzles![gamePuzzleIndex].gameLoop,
     );
-    const visitedColoredSquares = initVisitedSquares(startPos, coloredSquares);
+    const targetSquares = collectTargetSquares(
+      gamePuzzles![gamePuzzleIndex].gameLoop,
+    );
+    const visitedTargets = initVisitedTargets(startPos, targetSquares);
     const startInstructionIndex = getInstructionStartIndex(
       gamePuzzles![gamePuzzleIndex].instructions,
     );
+
+    // Reset gameBoard from original puzzle data
+    const resetBoard = gamePuzzles![gamePuzzleIndex].gameLoop.map((row, r) =>
+      row.map((cell, c) =>
+        r === startPos.row && c === startPos.col
+          ? { ...cell, iE: false }
+          : cell,
+      ),
+    );
+
     set({
       planePos: startPos,
       startPos: startPos,
-      rotationDegree: rotationDegree,
-      won: hasVisitedAllColoredSquares(visitedColoredSquares, coloredSquares),
+      rotationDegree: { from: 0, to: 0 }, // Reset rotation too
+      won: hasVisitedAllTargets(visitedTargets, targetSquares),
       currentInstructionIndex: startInstructionIndex,
-      gameBoard: get().gameBoard!,
-      coloredSquares,
-      visitedColoredSquares,
+      gameBoard: resetBoard,
+      pathSquares,
+      targetSquares,
+      visitedTargets,
       currentInsertInstructionBox: { row: 0, col: 0 },
       instructionBoard: gamePuzzles![gamePuzzleIndex].instructions,
     });
