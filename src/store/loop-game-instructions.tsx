@@ -128,6 +128,10 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
   gamePuzzleIndex: 0,
 
   setGamePuzzles: (gamePuzzle) => {
+    if (!gamePuzzle || gamePuzzle.length === 0) {
+      set({ gamePuzzles: [] });
+      return;
+    }
     let gameIndex: number = 0;
     gamePuzzle.map((k, idx) => {
       if (!k.solved) {
@@ -434,6 +438,7 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
   },
   resetGame: () => {
     const { gamePuzzleIndex, gamePuzzles, rotationDegree } = get();
+    if (!gamePuzzles || gamePuzzles.length === 0) return;
     const { startPos } = findStart(gamePuzzles![gamePuzzleIndex].gameLoop);
     const pathSquares = collectPathSquares(
       gamePuzzles![gamePuzzleIndex].gameLoop,
