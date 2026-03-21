@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "BlockPilot",
-    "slug": "BlockPilot",
+    "name": "MindPilot",
+    "slug": "MindPilot",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "blockpilot",
+    "scheme": "mindpilot",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.aaochieng.blockpilot"
+      "package": "com.aaochieng.mindpilot"
     },
     "web": {
       "output": "static",
@@ -45,8 +45,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "5b4360bc-c42e-4d09-a6b0-15f0f3f3ecf4"
+        "projectId": "317e2c75-482b-4c9c-9130-eff1d26b7aef"
       }
-    }
+    },
+    "owner": "ochiengaaron"
   }
 }
