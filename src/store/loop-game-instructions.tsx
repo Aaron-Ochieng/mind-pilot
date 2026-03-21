@@ -303,14 +303,17 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       visitedTargets,
       gameBoard,
     } = get();
+
+    const normalized = (rotationDegree.to % 360 + 360) % 360;
     let newPos: coordinates | undefined;
-    if (rotationDegree.to === 0) {
+
+    if (normalized === 0) {
       newPos = { row: planePos.row, col: planePos.col + 1 };
-    } else if (rotationDegree.to === 180 || rotationDegree.to === -180) {
-      newPos = { row: planePos.row, col: planePos.col - 1 };
-    } else if (rotationDegree.to === 90 || rotationDegree.to === -270) {
+    } else if (normalized === 90) {
       newPos = { row: planePos.row + 1, col: planePos.col };
-    } else if (rotationDegree.to === -90 || rotationDegree.to === 270) {
+    } else if (normalized === 180) {
+      newPos = { row: planePos.row, col: planePos.col - 1 };
+    } else if (normalized === 270) {
       newPos = { row: planePos.row - 1, col: planePos.col };
     }
 
