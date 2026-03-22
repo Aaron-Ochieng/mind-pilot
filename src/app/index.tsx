@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { useSQLiteContext } from "expo-sqlite";
 import { getAllHydratedLevels } from "@/db/database";
 import useInstructionStore from "@/store/loop-game-instructions";
+import { Image } from "expo-image";
+const logo = require("@/assets/images/splash.png");
 
 const Index = () => {
   const router = useRouter();
@@ -33,13 +35,11 @@ const Index = () => {
     <View className="w-full h-full items-center justify-center px-8 bg-slate-900 ">
       <SafeAreaView />
       <View className="mb-12 items-center">
+        <Image source={logo} style={{ height: 100, width: 100 }} />
         <Text
-          className="text-white text-4xl font-bold mb-2"
+          className="text-slate-400 text-center text-2xl"
           style={{ fontFamily: "JetBrainsMono_400Regular" }}
         >
-          BlockPilot
-        </Text>
-        <Text className="text-slate-400 text-center">
           Logic & Memory Challenges
         </Text>
       </View>
