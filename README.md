@@ -1,56 +1,94 @@
-# Welcome to your Expo app 👋
+# BlockPilot
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+BlockPilot is a high-performance cognitive puzzle suite built with React Native. It challenges players through two distinct mental disciplines: programmatic logic and spatial memory.
 
-## Get started
+## Game Modes
 
-1. Install dependencies
+1. **Loop Pilot (Logic & Sequencing)**
+   A programmatic navigation challenge. You don't control the plane in real-time; instead, you build a deck of instructions to automate its flight.
+   
+   * Instruction Set: Forward, Turn Left, Turn Right, and Repeat (Loops).
+   * Conditional Execution: Program the plane to only turn or paint when it lands on specific colored tiles (e.g., "Turn Left if tile is Amber").
+   * The Objective: Collect all target stars (iE points) without straying from the flight path.
+   * Smart Engine: Features normalized 360° rotation handling and idempotent state updates.
 
-   ```bash
-   npm install
-   ```
+2. **Memory Tiles (Pattern Recognition)**
+   A fast-paced board recall game.
+   
+   * Flash Phase: Study a randomized pattern of tiles.
+   * Recall Phase: Reconstruct the pattern from memory.
+   * Adaptive Difficulty: The grid complexity scales as your accuracy improves.
 
-2. Start the app
+## Technical Architecture
 
-   ```bash
-   npx expo start
-   ```
+* State Management: Zustand (https://github.com/pmndrs/zustand) drives the game loop and instruction engine with high-frequency updates (50ms intervals).
 
-In the output, you'll find options to open the app in a
+* Animations: React Native Reanimated (https://docs.swmansion.com/react-native-reanimated/) for fluid plane rotations and tile transitions.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+* Persistence: Local progress is saved in SQLite. The app automatically tracks solved levels and finds your first unsolved challenge upon launch.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+* Cloud Sync: Integrated with Firebase (Firestore).
+  
+  * Background Synchronization: On startup, the app checks for new puzzles.
+  * Offline First: If offline, the app uses cached SQLite data.
+  * Reactive UI: Real-time sync status indicators (Syncing/Success/Error) keep the user informed.
 
-## Get a fresh project
+* Styling: NativeWind (https://www.nativewind.dev/) (Tailwind CSS for React Native) for a modern dark-mode aesthetic.
+  
+  ---
+  
+  🚀 Getting Started
+  
+  Prerequisites
 
-When you're ready, run:
+* Bun (https://bun.sh/) (Recommended) or Node.js.
 
-```bash
-npm run reset-project
-```
+* Expo Go app on your mobile device or an Emulator.
+  
+  Installation
+1. Clone the repo:
+   1    git clone https://github.com/Aaron-Ochieng/BlockPilot.git
+   2    cd BlockPilot
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Install dependencies:
+   1    bun install
 
-### Other setup steps
+3. Start the development server:
+   1    npx expo start
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### Contributing
 
-## Learn more
+   We love contributions! Whether you're fixing a bug, adding a new level, or optimizing the logic engine, here’s how you can help:
 
-To learn more about developing your project with Expo, look at the following resources:
+1. New Levels
+   Levels are stored in Firestore and synced to SQLite. To propose a new level design, check src/loops/gameLoop.ts for the schema structure.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+2. The Logic Engine
+   If you're working on the movement or coloring logic:
+   
+   * Location: src/store/loop-game-instructions.tsx
+* Standard: All movement must use normalized rotation (0°, 90°, 180°, 270°).
 
-## Join the community
+* Safety: Always include bounds checking when accessing the gameBoard array.
+  
+  3. Contribution Workflow
+1. Fork the project.
 
-Join our community of developers creating universal apps.
+2. Create a Feature Branch (git checkout -b feature/AmazingFeature).
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+3. Commit Your Changes (git commit -m 'Add some AmazingFeature').
+
+4. Push to the Branch (git push origin feature/AmazingFeature).
+
+5. Open a Pull Request.
+   
+   Code Style
+* Use TypeScript for all logic.
+
+* Maintain the dark-mode aesthetic using Tailwind classes.
+
+* Ensure all state updates in the store are immutable and idempotent.
+
+### License
+
+Distributed under the MIT License. See LICENSE for more information.
