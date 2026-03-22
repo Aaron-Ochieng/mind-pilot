@@ -19,14 +19,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set Up JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: "zulu"
-          java-version: "17"
-          cache: "gradle"
+        uses: actions/checkout@v4
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -41,6 +34,13 @@ jobs:
 
       - name: Prebuild Expo project
         run: bunx expo prebuild --clean
+
+      - name: Set Up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+          cache: "gradle"
 
       - name: Decode release keystore
         run: |
@@ -77,7 +77,7 @@ jobs:
           done
 
       - name: Upload APK artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: android-apks
           path: android/app/build/outputs/apk/release/*.apk
