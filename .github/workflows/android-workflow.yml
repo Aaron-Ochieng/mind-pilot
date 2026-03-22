@@ -57,9 +57,55 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Build signed APKs
-        working-directory: android
-        run: ./gradlew assembleRelease
+      - name: Validate keystore + Gradle config
+        run: |
+          set -e
+
+          echo "Checking keystore file..."
+          if [ ! -f android/app/release.keystore ]; then
+            echo "❌ Keystore file NOT found!"
+            exit 1
+          fi
+
+          echo "Keystore exists"
+
+          echo "Checking keystore validity..."
+          keytool -list -keystore android/app/release.keystore -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1 || {
+            echo "❌ Invalid keystore or wrong password"
+            exit 1
+          }
+
+          echo "✅ Keystore is valid"
+
+          echo "🔍 Checking gradle.properties..."
+          if [ ! -f android/gradle.properties ]; then
+            echo "❌ gradle.properties missing!"
+            exit 1
+          fi
+
+          echo "📄 gradle.properties content (safe preview):"
+          cat android/gradle.properties | sed 's/=.*/=*** (hidden)/'
+
+          echo "🔍 Checking required Gradle properties..."
+
+          grep -q "MYAPP_UPLOAD_STORE_FILE" android/gradle.properties || { echo "❌ STORE_FILE missing"; exit 1; }
+          grep -q "MYAPP_UPLOAD_KEY_ALIAS" android/gradle.properties || { echo "❌ KEY_ALIAS missing"; exit 1; }
+          grep -q "MYAPP_UPLOAD_STORE_PASSWORD" android/gradle.properties || { echo "❌ STORE_PASSWORD missing"; exit 1; }
+          grep -q "MYAPP_UPLOAD_KEY_PASSWORD" android/gradle.properties || { echo "❌ KEY_PASSWORD missing"; exit 1; }
+
+          echo "✅ Gradle properties look good"
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+
+      - name: Change wrapper permissions
+        run: |
+          cd android
+          chmod +x ./gradlew
+
+      - name: Build Signed apk
+        run: |
+          cd android
+          ./gradlew assembleRelease
 
       - name: Rename APKs with app name and tag
         run: |
