@@ -144,7 +144,10 @@ const LoopGame = () => {
         {won && (
           <Text className="text-emerald-500 font-bold text-xl">You Won</Text>
         )}
-        <Text className="text-white font-bold text-2xl">
+        <Text
+          className="text-white  text-2xl"
+          style={{ fontFamily: "JetBrainsMono_400Regular" }}
+        >
           {rotationDegree.to} {WhereToRotate(rotationDegree.to)}
         </Text>
       </View>
@@ -277,21 +280,25 @@ const LoopGame = () => {
         </Pressable>
       </View>
       <View className="mt-4">
-        {instructionBoard?.map((_i, k) => (
-          <View key={k} className="flex-row gap-2">
-            {_i!.map((v, key) => (
+        {instructionBoard?.map((i, k) => (
+          <View key={k} className="flex-row gap-1 items-center">
+            <View className="border border-slate-700 rounded-xl bg-slate-600 size-12 items-center justify-center">
+              <Text
+                className="text-white text-2xl"
+                style={{ fontFamily: "JetBrainsMono_700Bold" }}
+              >
+                {k.toString()}
+              </Text>
+            </View>
+            {i!.map((v, key) => (
               <Pressable
                 key={key}
-                onPress={
-                  key === 0
-                    ? undefined
-                    : () => {
-                        changeInstructionBox({ row: k, col: key });
-                      }
-                }
+                onPress={() => {
+                  changeInstructionBox({ row: k, col: key });
+                }}
               >
                 <View
-                  className={`size-12 ${currentInstructionIndex === key && currentInstructionIndex !== 0 ? "border border-pink-600" : ""} ${currentInsertInstructionBox.row === k && currentInsertInstructionBox.col === key ? "border-red-300" : ""} ${instructionBoard[k][key].color === "amber" ? "bg-amber-500" : instructionBoard[k][key].color === "indigo" ? "bg-indigo-500" : instructionBoard[k][key].color === "red" ? "bg-red-500" : "bg-slate-950"} rounded-xl items-center justify-center ${currentInsertInstructionBox.row === k && currentInsertInstructionBox.col === key && instructionBoard[k][key].color === "" ? "border-2 border-slate-500" : ""}`}
+                  className={`size-12 ${currentInstructionIndex === key ? "border-2 border-emerald-600" : ""} ${currentInsertInstructionBox.row === k && currentInsertInstructionBox.col === key ? "border-red-300" : ""} ${instructionBoard[k][key].color === "amber" ? "bg-amber-500" : instructionBoard[k][key].color === "indigo" ? "bg-indigo-500" : instructionBoard[k][key].color === "red" ? "bg-red-500" : "bg-slate-950"} rounded-xl items-center justify-center ${currentInsertInstructionBox.row === k && currentInsertInstructionBox.col === key && instructionBoard[k][key].color === "" ? "border-2 border-slate-500" : ""}`}
                 >
                   {InstructionIcon(v)}
                   {instructionBoard[k][key].paintSquare ? (
