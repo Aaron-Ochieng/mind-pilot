@@ -1,4 +1,7 @@
 import { JetBrainsMono_400Regular } from "@expo-google-fonts/jetbrains-mono/400Regular";
+import { JetBrainsMono_500Medium } from "@expo-google-fonts/jetbrains-mono/500Medium";
+import { JetBrainsMono_600SemiBold } from "@expo-google-fonts/jetbrains-mono/600SemiBold";
+import { JetBrainsMono_700Bold } from "@expo-google-fonts/jetbrains-mono/700Bold";
 import { useFonts } from "@expo-google-fonts/jetbrains-mono/useFonts";
 import { Stack } from "expo-router";
 import { Sun } from "lucide-react-native";
@@ -10,7 +13,12 @@ import { Suspense } from "react";
 import SyncOnStart from "@/components/sync-on-start";
 
 export default function RootLayout() {
-  let [fontsLoaded] = useFonts({ JetBrainsMono_400Regular });
+  let [fontsLoaded] = useFonts({
+    JetBrainsMono_400Regular,
+    JetBrainsMono_500Medium,
+    JetBrainsMono_600SemiBold,
+    JetBrainsMono_700Bold,
+  });
   if (!fontsLoaded) return null;
   return (
     <Suspense
