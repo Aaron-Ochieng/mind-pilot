@@ -3,7 +3,7 @@ import { upsertLevels } from "@/db/database";
 import { collection, getDocs } from "firebase/firestore";
 import { firestoreDb } from "@/services/firebase";
 
-const LEVELS_COLLECTION = "levels";
+const LEVELS_COLLECTION = "level";
 
 /**
  * Synchronize levels from Firestore to SQLite.
@@ -27,7 +27,6 @@ export async function syncFirestoreToSQLite(db: SQLite.SQLiteDatabase) {
       id: doc.id,
       ...doc.data(),
     }));
-
     // Log the pulled data for debugging
     console.log("--- DATA PULLED FROM FIRESTORE ---");
     console.log(JSON.stringify(levels, null, 2));
