@@ -31,7 +31,6 @@ const LoopGame = () => {
     changeInstructionBox,
     currentInsertInstructionBox,
     feedInstruction,
-    startPos,
     play,
     planePos,
     rotationDegree,
@@ -111,7 +110,14 @@ const LoopGame = () => {
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [won, nextLevel, gamePuzzles, gamePuzzleIndex, db, markCurrentLevelSolved]);
+  }, [
+    won,
+    nextLevel,
+    gamePuzzles,
+    gamePuzzleIndex,
+    db,
+    markCurrentLevelSolved,
+  ]);
 
   useEffect(() => {
     if (overlapResetCount > 0) stopAutoPlay();
@@ -151,17 +157,20 @@ const LoopGame = () => {
                 style={{ width: boxSize, height: boxSize }}
                 className={`m-px rounded-lg items-center justify-center  ${v.c === "indigo" ? "bg-indigo-600" : v.c === "red" ? "bg-red-500" : v.c === "amber" ? "bg-amber-500" : "bg-slate-950"}`}
               >
-                {(v.iS || v.iE) &&
-                !(k === planePos.row && key === planePos.col) ? (
+                {v.iE && !(k === planePos.row && key === planePos.col) ? (
                   <Star
-                    size={15}
-                    fill="#ffffff"
+                    size={gameBoard!.length > 12 ? 12 : 16}
+                    fill="#000000"
                     strokeOpacity={0}
-                    color="#ffffff"
+                    color="#000000"
                   />
                 ) : k === planePos.row && key === planePos.col ? (
                   <View className={`${WhereToRotate(rotationDegree.to)}`}>
-                    <SendHorizonal color="#ffffff" fill="#ffffff" size={20} />
+                    <SendHorizonal
+                      color="#ffffff"
+                      fill="#ffffff"
+                      size={gameBoard!.length > 12 ? 12 : 20}
+                    />
                   </View>
                 ) : (
                   ""
