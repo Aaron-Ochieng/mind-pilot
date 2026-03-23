@@ -11,10 +11,10 @@ const withSigningConfig: ConfigPlugin = (config) => {
         `signingConfigs {
         release {
             if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
-                storeFile file(MYAPP_UPLOAD_STORE_FILE)
+                storeFile file("release.keystore")
                 storePassword MYAPP_UPLOAD_STORE_PASSWORD
-                keyAlias MYAPP_UPLOAD_KEY_ALIAS
-                keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+                keyAlias System.getenv("MYAPP_UPLOAD_KEY_ALIAS")
+                keyPassword System.getenv("MYAPP_UPLOAD_KEY_PASSWORD")
             }
         }`,
       );

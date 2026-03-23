@@ -46,65 +46,15 @@ jobs:
         run: |
           echo $KEYSTORE_BASE64 | base64 -d > android/app/release.keystore
 
-          # Append Gradle properties one line at a time
-          echo "MYAPP_UPLOAD_STORE_FILE=release.keystore" >> android/gradle.properties
-          echo "MYAPP_UPLOAD_KEY_ALIAS=$KEY_ALIAS" >> android/gradle.properties
-          echo "MYAPP_UPLOAD_STORE_PASSWORD=$KEYSTORE_PASSWORD" >> android/gradle.properties
-          echo "MYAPP_UPLOAD_KEY_PASSWORD=$KEY_PASSWORD" >> android/gradle.properties
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Validate keystore + Gradle config
-        run: |
-          set -e
-
-          echo "Checking keystore file..."
-          if [ ! -f android/app/release.keystore ]; then
-            echo "❌ Keystore file NOT found!"
-            exit 1
-          fi
-
-          echo "Keystore exists"
-
-          echo "Checking keystore validity..."
-          keytool -list -keystore android/app/release.keystore -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1 || {
-            echo "❌ Invalid keystore or wrong password"
-            exit 1
-          }
-
-          echo "✅ Keystore is valid"
-
-          echo "🔍 Checking gradle.properties..."
-          if [ ! -f android/gradle.properties ]; then
-            echo "❌ gradle.properties missing!"
-            exit 1
-          fi
-
-          echo "📄 gradle.properties content (safe preview):"
-          cat android/gradle.properties | sed 's/=.*/=*** (hidden)/'
-
-          echo "🔍 Checking required Gradle properties..."
-
-          grep -q "MYAPP_UPLOAD_STORE_FILE" android/gradle.properties || { echo "❌ STORE_FILE missing"; exit 1; }
-          grep -q "MYAPP_UPLOAD_KEY_ALIAS" android/gradle.properties || { echo "❌ KEY_ALIAS missing"; exit 1; }
-          grep -q "MYAPP_UPLOAD_STORE_PASSWORD" android/gradle.properties || { echo "❌ STORE_PASSWORD missing"; exit 1; }
-          grep -q "MYAPP_UPLOAD_KEY_PASSWORD" android/gradle.properties || { echo "❌ KEY_PASSWORD missing"; exit 1; }
-
-          echo "✅ Gradle properties look good"
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-
-      - name: Change wrapper permissions
-        run: |
-          cd android
-          chmod +x ./gradlew
-
       - name: Build Signed apk
+        working-directory: android
         run: |
-          cd android
           ./gradlew assembleRelease
 
       - name: Rename APKs with app name and tag
