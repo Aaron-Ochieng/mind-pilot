@@ -26,21 +26,36 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install
 
       - name: Install Expo CLI
         run: bun install -g expo-cli
 
-      - name: Prebuild Expo project
-        run: bunx expo prebuild --clean
-
       - name: Set Up JDK
         uses: actions/setup-java@v4
         with:
           distribution: "zulu"
           java-version: "17"
-          cache: "gradle"
+
+      - name: Cache Android folder
+        uses: actions/cache@v4
+        with:
+          path: android
+          key: ${{ runner.os }}-android-incremental-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-android-incremental-
+
+      - name: Prebuild Expo project
+        run: bunx expo prebuild
 
       - name: Decode release keystore
         run: |
