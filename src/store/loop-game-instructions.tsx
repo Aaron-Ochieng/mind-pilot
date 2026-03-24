@@ -389,8 +389,9 @@ const useInstructionStore = create<InstructionsState>()((set, get) => ({
       _changeGridColor,
       _moveForward,
       gameBoard,
+      won,
     } = get();
-    if (instructionBoard === null || !gameBoard) return;
+    if (won || instructionBoard === null || !gameBoard) return;
 
     // Guard against out of bounds access
     if (
